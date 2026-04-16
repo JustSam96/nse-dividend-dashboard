@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NSE Dividend Dashboard v4</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<style>
+:root {
+  --navy: #0a1628;
+  --navy2: #0f2040;
+  --navy3: #162b50;
+  --accent: #00d4a0;
+  --accent2: #00a87e;
+  --gold: #f5c842;
+  --red: #ff5252;
+  --muted: #8899aa;
+  --border: rgba(0,212,160,0.15);
+  --card: rgba(15,32,64,0.8);
+  --text: #e8f0f8;
+  --text2: #aabccc;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Sora', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--navy); color: var(--text); font-size: 14px; min-height: 100vh; }
+body::before { content:''; position:fixed; inset:0; background-image: linear-gradient(rgba(0,212,160,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,160,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events:none; z-index:0; }
+.app { position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:0 16px 40px; }
+
+/* HEADER */
+header { display:flex; align-items:center; justify-content:space-between; padding:18px 0 16px; border-bottom:1px solid var(--border); margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+.logo { display:flex; align-items:center; gap:12px; }
+.logo-mark { width:36px; height:36px; border:1.5px solid var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+.logo-mark svg { width:20px; height:20px; }
+.logo-text h1 { font-size:16px; font-weight:600; letter-spacing:0.5px; }
+.logo-text p { font-size:11px; color:var(--muted); font-family:var(--mono); margin-top:1px; }
+.header-right { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.market-status { display:flex; align-items:center; gap:6px; font-size:12px; font-family:var(--mono); }
+.status-dot { width:7px; height:7px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite; }
+.status-dot.closed { background:var(--red); animation:none; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+#clock { font-family:var(--mono); font-size:13px; color:var(--accent); }
+
+/* ACCOUNT UI */
+.account-area { display:flex; align-items:center; gap:8px; }
+.account-btn { font-size:11px; padding:5px 12px; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--text2); cursor:pointer; font-family:var(--mono); transition:all 0.15s; }
+.account-btn:hover { border-color:var(--accent); color:var(--accent); }
+.account-btn.signed-in { border-color:var(--accent); color:var(--accent); }
+.user-avatar { width:28px; height:28px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--navy); font-weight:600; font-family:var(--mono); cursor:pointer; }
+.sync-indicator { font-size:10px; font-family:var(--mono); color:var(--muted); }
+.sync-indicator.synced { color:var(--accent); }
+.sync-indicator.syncing { color:var(--gold); }
+
+/* AUTH MODAL */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(5,15,30,0.9); z-index:500; align-items:center; justify-content:center; padding:16px; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:#0d1f3c; border:1px solid var(--border); border-radius:16px; max-width:420px; width:100%; padding:32px; position:relative; }
+.modal-close { position:absolute; top:14px; right:16px; background:none; border:none; font-size:18px; cursor:pointer; color:var(--muted); }
+.modal-close:hover { color:var(--text); }
+.modal-title { font-size:20px; font-weight:600; margin-bottom:4px; }
+.modal-sub { font-size:12px; color:var(--muted); font-family:var(--mono); margin-bottom:24px; }
+.modal-tabs { display:flex; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:24px; }
+.modal-tab { flex:1; padding:8px; text-align:center; font-size:12px; font-family:var(--mono); cursor:pointer; color:var(--muted); background:transparent; border:none; transition:all 0.2s; }
+.modal-tab.active { background:var(--accent); color:var(--navy); font-weight:600; }
+.field-group { margin-bottom:14px; }
+.field-group label { display:block; font-size:10px; color:var(--muted); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px; }
+.field-group input { width:100%; padding:10px 12px; background:var(--navy); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:13px; }
+.field-group input:focus { outline:none; border-color:var(--accent); }
+.modal-err { font-size:12px; color:var(--red); font-family:var(--mono); margin-bottom:12px; display:none; }
+.btn-modal-submit { width:100%; padding:12px; background:var(--accent); color:var(--navy); border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--mono); transition:all 0.2s; margin-bottom:12px; }
+.btn-modal-submit:hover { background:var(--accent2); }
+.btn-modal-submit:disabled { opacity:0.5; cursor:not-allowed; }
+.modal-divider { text-align:center; font-size:11px; color:var(--muted); font-family:var(--mono); margin-bottom:12px; }
+.btn-google { width:100%; padding:10px; background:transparent; color:var(--text); border:1px solid var(--border); border-radius:8px; font-size:13px; cursor:pointer; font-family:var(--mono); transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-google:hover { border-color:var(--accent); }
+.signed-in-box { text-align:center; }
+.signed-in-avatar { width:64px; height:64px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:24px; color:var(--navy); font-weight:600; margin:0 auto 12px; }
+.signed-in-name { font-size:18px; font-weight:600; margin-bottom:4px; }
+.signed-in-email { font-size:12px; color:var(--muted); font-family:var(--mono); margin-bottom:20px; }
+.cloud-info { background:rgba(0,212,160,0.06); border:1px solid rgba(0,212,160,0.2); border-radius:8px; padding:12px; margin-bottom:20px; font-size:12px; color:var(--text2); line-height:1.6; }
+
+/* METRICS */
+.metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:20px; }
+.metric { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; backdrop-filter:blur(10px); }
+.metric-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; font-family:var(--mono); }
+.metric-value { font-size:22px; font-weight:600; font-family:var(--mono); }
+.metric-sub { font-size:10px; margin-top:3px; font-family:var(--mono); }
+.up { color:var(--accent); } .down { color:var(--red); } .gold { color:var(--gold); }
+
+/* TABS */
+.tab-bar { display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:20px; overflow-x:auto; }
+.tab { padding:10px 18px; font-size:12px; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; white-space:nowrap; transition:all 0.2s; font-family:var(--mono); text-transform:uppercase; letter-spacing:0.5px; }
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+/* PANELS */
+.panel { background:var(--card); border:1px solid var(--border); border-radius:12px; margin-bottom:16px; overflow:hidden; backdrop-filter:blur(10px); }
+.panel-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.panel-header h2 { font-size:13px; font-weight:500; text-transform:uppercase; letter-spacing:0.8px; font-family:var(--mono); color:var(--accent); }
+.panel-body { padding:18px; }
+
+/* CONTROLS */
+.controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+select { font-size:12px; padding:6px 10px; background:var(--navy2); border:1px solid var(--border); border-radius:6px; color:var(--text); cursor:pointer; font-family:var(--mono); }
+select:focus { outline:none; border-color:var(--accent); }
+.btn { font-size:12px; padding:6px 14px; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--text2); cursor:pointer; font-family:var(--mono); transition:all 0.15s; }
+.btn:hover { border-color:var(--accent); color:var(--accent); }
+.btn-accent { background:var(--accent); color:var(--navy); border-color:var(--accent); font-weight:600; }
+.btn-accent:hover { background:var(--accent2); border-color:var(--accent2); color:var(--navy); }
+.btn-sm { padding:4px 10px; font-size:11px; }
+.btn-red { border-color:rgba(255,82,82,0.4); color:var(--red); }
+.btn-red:hover { background:rgba(255,82,82,0.1); }
+
+/* SEARCH */
+.search-wrap { position:relative; }
+.search-wrap input { font-size:12px; padding:6px 10px 6px 30px; background:var(--navy2); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:var(--mono); width:180px; }
+.search-wrap input:focus { outline:none; border-color:var(--accent); width:220px; transition:width 0.2s; }
+.search-icon { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:12px; }
+
+/* TABLE */
+.tbl-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead th { padding:9px 12px; text-align:left; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px; border-bottom:1px solid var(--border); font-family:var(--mono); font-weight:400; white-space:nowrap; cursor:pointer; }
+thead th:hover { color:var(--text); }
+tbody tr { border-bottom:1px solid rgba(0,212,160,0.05); cursor:pointer; transition:background 0.1s; }
+tbody tr:hover { background:rgba(0,212,160,0.05); }
+tbody tr:last-child { border-bottom:none; }
+tbody td { padding:10px 12px; vertical-align:middle; }
+.ticker-badge { font-family:var(--mono); font-weight:500; font-size:13px; color:var(--accent); }
+.badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:10px; font-family:var(--mono); white-space:nowrap; }
+.badge-buy { background:rgba(0,212,160,0.15); color:var(--accent); border:1px solid rgba(0,212,160,0.3); }
+.badge-watch { background:rgba(245,200,66,0.15); color:var(--gold); border:1px solid rgba(245,200,66,0.3); }
+.badge-avoid { background:rgba(255,82,82,0.15); color:var(--red); border:1px solid rgba(255,82,82,0.3); }
+.badge-sector { background:rgba(100,140,200,0.12); color:#7eb0e8; border:1px solid rgba(100,140,200,0.25); font-size:10px; }
+.score-bar { display:flex; align-items:center; gap:8px; }
+.bar-track { flex:1; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; min-width:50px; }
+.bar-fill { height:4px; border-radius:2px; }
+.bar-high { background:var(--accent); } .bar-mid { background:var(--gold); } .bar-low { background:var(--red); }
+.score-num { font-family:var(--mono); font-size:12px; min-width:24px; }
+
+/* DETAIL OVERLAY */
+.overlay { display:none; position:fixed; inset:0; background:rgba(5,15,30,0.85); z-index:200; align-items:center; justify-content:center; padding:16px; }
+.overlay.open { display:flex; }
+.overlay-box { background:#0d1f3c; border:1px solid var(--border); border-radius:14px; max-width:500px; width:100%; padding:24px; position:relative; max-height:90vh; overflow-y:auto; }
+.overlay-close { position:absolute; top:14px; right:16px; background:none; border:none; font-size:18px; cursor:pointer; color:var(--muted); }
+.overlay-close:hover { color:var(--text); }
+.d-title { font-size:18px; font-weight:600; margin-bottom:2px; }
+.d-sub { font-size:12px; color:var(--muted); font-family:var(--mono); margin-bottom:16px; }
+.d-row { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:13px; }
+.d-row:last-child { border-bottom:none; }
+.d-row span:first-child { color:var(--muted); }
+.d-row span:last-child { font-family:var(--mono); font-weight:500; }
+.trade-steps { background:rgba(0,212,160,0.06); border:1px solid rgba(0,212,160,0.15); border-radius:8px; padding:14px; margin-top:16px; font-size:12px; line-height:1.8; color:var(--text2); }
+.trade-steps strong { color:var(--accent); font-size:12px; display:block; margin-bottom:6px; }
+
+/* WATCHLIST */
+.watch-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; }
+.watch-card { background:var(--navy2); border:1px solid var(--border); border-radius:10px; padding:14px; position:relative; }
+.wc-ticker { font-family:var(--mono); font-size:15px; color:var(--accent); font-weight:500; }
+.wc-name { font-size:11px; color:var(--muted); margin-bottom:10px; }
+.wc-price { font-size:22px; font-weight:600; font-family:var(--mono); }
+.wc-yield { font-size:11px; color:var(--accent); margin-top:2px; font-family:var(--mono); }
+.wc-remove { position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; color:var(--muted); font-size:14px; }
+.wc-remove:hover { color:var(--red); }
+
+/* CALENDAR */
+.cal-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+.cal-card { background:var(--navy2); border:1px solid var(--border); border-radius:10px; padding:16px; }
+.cal-month { font-family:var(--mono); font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; }
+.cal-event { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.cal-event:last-child { border-bottom:none; }
+.cal-ticker { font-family:var(--mono); font-size:12px; color:var(--accent); font-weight:500; }
+.cal-name { font-size:11px; color:var(--muted); }
+.cal-right { text-align:right; }
+.cal-date { font-family:var(--mono); font-size:11px; color:var(--gold); }
+.cal-div { font-family:var(--mono); font-size:13px; font-weight:500; color:var(--accent); }
+.cal-type { font-size:10px; color:var(--muted); }
+.cal-countdown { display:inline-block; padding:2px 7px; background:rgba(245,200,66,0.12); color:var(--gold); border-radius:10px; font-size:10px; font-family:var(--mono); margin-top:2px; }
+
+/* PORTFOLIO */
+.port-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:18px; }
+.port-metric { background:var(--navy2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+.port-metric-label { font-size:10px; color:var(--muted); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px; }
+.port-metric-value { font-size:18px; font-weight:600; font-family:var(--mono); }
+.add-form { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; background:var(--navy2); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:16px; }
+.form-group { display:flex; flex-direction:column; gap:4px; }
+.form-group label { font-size:10px; color:var(--muted); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.5px; }
+.form-group select, .form-group input { font-size:13px; padding:7px 10px; background:var(--navy); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:var(--mono); width:140px; }
+.form-group input:focus, .form-group select:focus { outline:none; border-color:var(--accent); }
+
+/* ALERTS */
+.alerts-list { display:flex; flex-direction:column; gap:8px; }
+.alert-card { background:var(--navy2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.alert-card.triggered { border-color:rgba(0,212,160,0.5); background:rgba(0,212,160,0.06); }
+.alert-card.triggered-red { border-color:rgba(255,82,82,0.5); background:rgba(255,82,82,0.06); }
+.alert-left { display:flex; align-items:center; gap:12px; }
+.alert-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+.alert-ticker { font-family:var(--mono); font-size:14px; color:var(--accent); font-weight:500; }
+.alert-detail { font-size:11px; color:var(--muted); font-family:var(--mono); margin-top:2px; }
+.alert-status { font-size:11px; font-family:var(--mono); }
+.alert-add-form { background:var(--navy2); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
+
+/* SETTINGS */
+.settings-section { margin-bottom:24px; }
+.settings-section h3 { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-family:var(--mono); margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.setting-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:13px; flex-wrap:wrap; gap:8px; }
+.setting-row:last-child { border-bottom:none; }
+.setting-row label { color:var(--text2); }
+.setting-right { display:flex; align-items:center; gap:10px; }
+.setting-right input[type=range] { width:120px; accent-color:var(--accent); }
+.setting-val { font-family:var(--mono); font-size:12px; color:var(--accent); min-width:36px; text-align:right; }
+
+/* EMPTY */
+.empty { text-align:center; padding:40px 20px; color:var(--muted); font-size:13px; font-family:var(--mono); }
+.empty span { display:block; font-size:28px; margin-bottom:10px; opacity:0.4; }
+
+/* TOAST */
+.toast { position:fixed; bottom:20px; right:20px; background:var(--navy2); border:1px solid var(--accent); color:var(--accent); padding:10px 18px; border-radius:8px; font-size:13px; font-family:var(--mono); z-index:999; opacity:0; transform:translateY(10px); transition:all 0.3s; pointer-events:none; }
+.toast.show { opacity:1; transform:translateY(0); }
+
+/* DISCLAIMER */
+.disclaimer { font-size:10px; color:rgba(136,153,170,0.6); text-align:center; padding-top:16px; border-top:1px solid var(--border); margin-top:24px; font-family:var(--mono); line-height:1.7; }
+
+/* LIVE PRICE BAR */
+.live-bar { display:flex; align-items:center; gap:10px; background:rgba(0,212,160,0.06); border:1px solid var(--border); border-radius:8px; padding:8px 14px; margin-bottom:14px; flex-wrap:wrap; }
+.live-bar-left { display:flex; align-items:center; gap:8px; flex:1; }
+.live-icon { font-size:14px; }
+.live-label { font-family:var(--mono); font-size:11px; color:var(--muted); }
+.live-status { font-family:var(--mono); font-size:11px; }
+.live-status.fetching { color:var(--gold); }
+.live-status.success { color:var(--accent); }
+.live-status.error { color:var(--red); }
+.live-timestamp { font-family:var(--mono); font-size:10px; color:var(--muted); }
+.btn-refresh { font-size:11px; padding:4px 12px; border:1px solid var(--border); border-radius:5px; background:transparent; color:var(--accent); cursor:pointer; font-family:var(--mono); transition:all 0.15s; display:flex; align-items:center; gap:5px; }
+.btn-refresh:hover { background:rgba(0,212,160,0.1); }
+.btn-refresh:disabled { opacity:0.4; cursor:not-allowed; }
+.spin { display:inline-block; animation:spin 1s linear infinite; }
+@keyframes spin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+.price-live { position:relative; }
+.price-live::after { content:'●'; font-size:6px; color:var(--accent); position:absolute; top:-2px; right:-8px; animation:pulse 2s infinite; }
+.price-up { color:var(--accent) !important; }
+.price-down { color:var(--red) !important; }
+.price-change { font-size:10px; font-family:var(--mono); margin-left:4px; }
+
+/* PAGINATION */
+.pagination { display:flex; align-items:center; gap:8px; padding:12px 18px; border-top:1px solid var(--border); font-family:var(--mono); font-size:12px; color:var(--muted); flex-wrap:wrap; }
+.page-btn { padding:4px 10px; border:1px solid var(--border); border-radius:5px; background:transparent; color:var(--text2); cursor:pointer; font-family:var(--mono); font-size:11px; }
+.page-btn:hover { border-color:var(--accent); color:var(--accent); }
+.page-btn.active { background:var(--accent); color:var(--navy); border-color:var(--accent); font-weight:600; }
+.page-btn:disabled { opacity:0.3; cursor:not-allowed; }
+
+@media(max-width:600px){
+  .metrics { grid-template-columns:repeat(2,1fr); }
+  thead th:nth-child(4),tbody td:nth-child(4),
+  thead th:nth-child(7),tbody td:nth-child(7),
+  thead th:nth-child(8),tbody td:nth-child(8) { display:none; }
+  .search-wrap input { width:140px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polyline points="2,14 7,8 11,11 18,4" stroke="#00d4a0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="18" cy="4" r="2" fill="#00d4a0"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <h1>NSE Dividend Dashboard</h1>
+      <p>Faida Investment Bank · Manual Trading Assistant · v4</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="market-status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="market-status-text">Checking...</span>
+    </div>
+    <div id="clock">--:--:-- EAT</div>
+    <div class="account-area">
+      <span class="sync-indicator" id="sync-indicator">○ local</span>
+      <button class="account-btn" id="account-btn" onclick="openAuthModal()">Sign In</button>
+    </div>
+  </div>
+</header>
+
+<!-- METRICS -->
+<div class="metrics">
+  <div class="metric"><div class="metric-label">NSE 20 Index</div><div class="metric-value" style="color:#e8f0f8;">3,588</div><div class="metric-sub down">-0.07% today</div></div>
+  <div class="metric"><div class="metric-label">Market Cap</div><div class="metric-value" style="color:#e8f0f8;">3.44T</div><div class="metric-sub" style="color:var(--muted);">KES Total</div></div>
+  <div class="metric"><div class="metric-label">Buy Signals</div><div class="metric-value up" id="m-buys">—</div><div class="metric-sub" style="color:var(--muted);">From screener</div></div>
+  <div class="metric"><div class="metric-label">Watchlist</div><div class="metric-value gold" id="m-watch">0</div><div class="metric-sub" style="color:var(--muted);">Stocks tracked</div></div>
+  <div class="metric"><div class="metric-label">Portfolio Value</div><div class="metric-value up" id="m-portval">KES 0</div><div class="metric-sub up" id="m-portpnl">—</div></div>
+  <div class="metric"><div class="metric-label">Active Alerts</div><div class="metric-value gold" id="m-alerts">0</div><div class="metric-sub" style="color:var(--muted);">Price watchers</div></div>
+</div>
+
+<!-- TABS -->
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('screener',this)">Screener</div>
+  <div class="tab" onclick="switchTab('watchlist',this)">Watchlist</div>
+  <div class="tab" onclick="switchTab('calendar',this)">Dividend Calendar</div>
+  <div class="tab" onclick="switchTab('portfolio',this)">Portfolio</div>
+  <div class="tab" onclick="switchTab('alerts',this)">Price Alerts</div>
+  <div class="tab" onclick="switchTab('settings',this)">Settings</div>
+</div>
+
+<!-- ===== SCREENER ===== -->
+<div class="tab-content active" id="tab-screener">
+  <div class="live-bar">
+    <div class="live-bar-left">
+      <span class="live-icon">📡</span>
+      <span class="live-label">Live Prices:</span>
+      <span class="live-status" id="live-status">Not fetched yet — click Refresh</span>
+      <span class="live-timestamp" id="live-ts"></span>
+    </div>
+    <button class="btn-refresh" id="refresh-btn" onclick="fetchLivePrices()">
+      <span id="refresh-icon">↻</span> Refresh Prices
+    </button>
+  </div>
+  <div class="panel">
+    <div class="panel-header">
+      <h2>All NSE Listed Stocks — Dividend Rankings</h2>
+      <div class="controls">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="f-search" placeholder="Search ticker / name…" oninput="renderTable()">
+        </div>
+        <select id="f-sector" onchange="renderTable()">
+          <option value="all">All Sectors</option>
+          <option value="Banking">Banking</option>
+          <option value="Telecom">Telecom</option>
+          <option value="Consumer">Consumer</option>
+          <option value="Utilities">Utilities</option>
+          <option value="Energy">Energy</option>
+          <option value="Insurance">Insurance</option>
+          <option value="Agriculture">Agriculture</option>
+          <option value="Media">Media</option>
+          <option value="Investment">Investment</option>
+          <option value="Industrial">Industrial</option>
+          <option value="Construction">Construction</option>
+          <option value="Real Estate">Real Estate</option>
+          <option value="Manufacturing">Manufacturing</option>
+          <option value="Automobile">Automobile</option>
+          <option value="Commercial">Commercial</option>
+        </select>
+        <select id="f-signal" onchange="renderTable()">
+          <option value="all">All Signals</option>
+          <option value="buy">Buy Only</option>
+          <option value="watch">Watch Only</option>
+        </select>
+        <select id="f-sort" onchange="renderTable()">
+          <option value="score">By Score</option>
+          <option value="yield">By Yield</option>
+          <option value="pe">By P/E</option>
+          <option value="price">By Price</option>
+        </select>
+        <select id="f-perpage" onchange="currentPage=1;renderTable()">
+          <option value="25">25 / page</option>
+          <option value="50">50 / page</option>
+          <option value="100">All</option>
+        </select>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th>
+          <th onclick="sortBy('ticker')">Ticker ⇅</th>
+          <th>Company</th>
+          <th onclick="sortBy('sector')">Sector ⇅</th>
+          <th onclick="sortBy('price')">Price ⇅</th>
+          <th onclick="sortBy('yield')">Yield% ⇅</th>
+          <th onclick="sortBy('cons')">Div.Yrs ⇅</th>
+          <th onclick="sortBy('payout')">Payout% ⇅</th>
+          <th onclick="sortBy('pe')">P/E ⇅</th>
+          <th onclick="sortBy('score')">Score ⇅</th>
+          <th>Signal</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody id="stock-tbody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination-bar"></div>
+    <div style="padding:8px 16px;font-size:10px;color:var(--muted);font-family:var(--mono);" id="last-updated"></div>
+  </div>
+</div>
+
+<!-- ===== WATCHLIST ===== -->
+<div class="tab-content" id="tab-watchlist">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>My Watchlist</h2>
+      <button class="btn btn-sm btn-red" onclick="clearWatchlist()">Clear all</button>
+    </div>
+    <div class="panel-body">
+      <div class="watch-grid" id="watch-grid"></div>
+      <div class="empty" id="watch-empty"><span>◈</span>No stocks watched yet.<br>Click Watch on any screener row.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DIVIDEND CALENDAR ===== -->
+<div class="tab-content" id="tab-calendar">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Dividend Calendar 2026</h2>
+      <div class="controls">
+        <select id="cal-filter" onchange="renderCalendar()">
+          <option value="all">All stocks</option>
+          <option value="watch">Watchlist only</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PORTFOLIO ===== -->
+<div class="tab-content" id="tab-portfolio">
+  <div class="panel">
+    <div class="panel-header"><h2>Portfolio Tracker</h2></div>
+    <div class="panel-body">
+      <div class="add-form">
+        <div class="form-group">
+          <label>Stock</label>
+          <select id="p-stock" style="width:200px;"></select>
+        </div>
+        <div class="form-group">
+          <label>Shares</label>
+          <input type="number" id="p-shares" placeholder="e.g. 500" min="1">
+        </div>
+        <div class="form-group">
+          <label>Buy Price (KES)</label>
+          <input type="number" id="p-buyprice" placeholder="e.g. 28.50" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Buy Date</label>
+          <input type="date" id="p-date" style="width:150px;">
+        </div>
+        <button class="btn btn-accent btn-sm" onclick="addHolding()" style="align-self:flex-end;padding:8px 16px;">+ Add</button>
+      </div>
+      <div class="port-summary" id="port-summary"></div>
+      <div class="port-table">
+        <table>
+          <thead><tr>
+            <th>Ticker</th><th>Company</th><th>Shares</th><th>Buy Price</th>
+            <th>Current</th><th>Book Value</th><th>Market Value</th><th>P&L</th><th>Yield on Cost</th><th></th>
+          </tr></thead>
+          <tbody id="port-tbody"></tbody>
+        </table>
+        <div class="empty" id="port-empty"><span>◈</span>No holdings yet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PRICE ALERTS ===== -->
+<div class="tab-content" id="tab-alerts">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Price Alerts</h2>
+      <span style="font-size:11px;color:var(--muted);font-family:var(--mono);">Simulated · Based on screener data</span>
+    </div>
+    <div class="panel-body">
+      <div class="alert-add-form">
+        <div class="form-group">
+          <label>Stock</label>
+          <select id="al-stock" style="width:200px;"></select>
+        </div>
+        <div class="form-group">
+          <label>Alert Type</label>
+          <select id="al-type">
+            <option value="above">Price rises above</option>
+            <option value="below">Price falls below</option>
+            <option value="yield">Yield rises above (%)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Target Value</label>
+          <input type="number" id="al-target" placeholder="e.g. 35.00" step="0.01" style="width:130px;padding:7px 10px;background:var(--navy);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);">
+        </div>
+        <button class="btn btn-accent btn-sm" onclick="addAlert()" style="align-self:flex-end;padding:8px 16px;">+ Set Alert</button>
+      </div>
+      <div class="alerts-list" id="alerts-list"></div>
+      <div class="empty" id="alerts-empty"><span>◈</span>No alerts set.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div class="tab-content" id="tab-settings">
+  <div class="panel">
+    <div class="panel-header"><h2>Settings</h2></div>
+    <div class="panel-body">
+      <div class="settings-section">
+        <h3>Account & Cloud Sync</h3>
+        <div class="setting-row">
+          <label>Sign in to sync watchlist, portfolio & settings across devices</label>
+          <button class="btn btn-accent btn-sm" onclick="openAuthModal()">Manage Account</button>
+        </div>
+        <div class="setting-row">
+          <label>Sync status</label>
+          <span class="sync-indicator" id="sync-indicator-settings" style="font-size:12px;">○ Saving locally</span>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>Screening Thresholds</h3>
+        <div class="setting-row">
+          <label>Min. dividend yield (%)</label>
+          <div class="setting-right"><input type="range" min="1" max="15" step="0.5" id="s-yield" oninput="updateSettings()"><span class="setting-val" id="s-yield-v">3.0%</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Min. score for BUY signal</label>
+          <div class="setting-right"><input type="range" min="30" max="90" step="5" id="s-score" oninput="updateSettings()"><span class="setting-val" id="s-score-v">60</span></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>Scoring Weights (must total 100)</h3>
+        <div class="setting-row">
+          <label>Dividend yield</label>
+          <div class="setting-right"><input type="range" min="10" max="60" step="5" id="w-y" oninput="updateWeights()"><span class="setting-val" id="w-y-v">40</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Consistency</label>
+          <div class="setting-right"><input type="range" min="10" max="60" step="5" id="w-c" oninput="updateWeights()"><span class="setting-val" id="w-c-v">30</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Payout ratio</label>
+          <div class="setting-right"><input type="range" min="5" max="30" step="5" id="w-p" oninput="updateWeights()"><span class="setting-val" id="w-p-v">15</span></div>
+        </div>
+        <div class="setting-row">
+          <label>P/E ratio</label>
+          <div class="setting-right"><input type="range" min="5" max="30" step="5" id="w-pe" oninput="updateWeights()"><span class="setting-val" id="w-pe-v">15</span></div>
+        </div>
+        <p id="weight-warn" style="font-size:11px;color:var(--red);margin-top:8px;display:none;font-family:var(--mono);"></p>
+      </div>
+      <div class="settings-section">
+        <h3>Data</h3>
+        <div class="setting-row">
+          <label>Clear all saved data (watchlist, portfolio, alerts)</label>
+          <button class="btn btn-sm btn-red" onclick="clearAll()">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- DETAIL OVERLAY -->
+<div class="overlay" id="detail-overlay" onclick="closeOverlay(event)">
+  <div class="overlay-box">
+    <button class="overlay-close" onclick="document.getElementById('detail-overlay').classList.remove('open')">&#x2715;</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="auth-modal" onclick="closeAuthModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('auth-modal').classList.remove('open')">&#x2715;</button>
+    <div id="auth-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="app"><p class="disclaimer">Research tool only. All trades must be placed manually via Faida Investment Bank or a CMA-licensed broker. This tool does not execute trades or access any brokerage account. Not financial advice. Past dividends do not guarantee future returns.</p></div>
+
+<!-- Firebase App (the core Firebase SDK) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<!-- Firebase Authentication -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<!-- Firebase Firestore -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<!-- Firebase Analytics (optional, if you want to use it with the compatibility SDK) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
+
+<script>
+// Your existing main script content starts here
+// ...
+</script>
+
+
+<script>
+// ── FIREBASE CONFIG ──────────────────────────────────────────────
+// NOTE TO USER: Replace with your own Firebase project config from console.firebase.google.com
+// Steps: Create project → Add web app → Copy config below → Enable Auth (Email/Password + Google) + Firestore
+const firebaseConfig = {
+  apiKey: "AIzaSyCmbjgnisDo2ZMAUCUnYi7YOwNf8NTEX6Q", // Your actual API Key
+  authDomain: "nse-analyzer-e7a66.firebaseapp.com", // Your actual Auth Domain
+  projectId: "nse-analyzer-e7a66", // Your actual Project ID
+  storageBucket: "nse-analyzer-e7a66.firebasestorage.app", // Your actual Storage Bucket
+  messagingSenderId: "406772161001", // Your actual Messaging Sender ID
+  appId: "1:406772161001:web:093f73c5133797a60c9378", // Your actual App ID
+  measurementId: "G-F3163E47TN" // Your actual Measurement ID (for Analytics)
+};
+
+
+let db = null, auth = null, currentUser = null, firestoreUnsubscribe = null;
+let firebaseReady = false;
+
+function initFirebase() {
+  try {
+    firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    firebaseReady = true;
+
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      updateAccountUI();
+      if (user) {
+        subscribeToCloud();
+      } else {
+        if (firestoreUnsubscribe) { firestoreUnsubscribe(); firestoreUnsubscribe = null; }
+        setSyncIndicator('local');
+      }
+    });
+  } catch(e) {
+    console.warn('Firebase not configured:', e.message);
+    firebaseReady = false;
+    setSyncIndicator('local');
+  }
+}
+
+function setSyncIndicator(state) {
+  const s1 = document.getElementById('sync-indicator');
+  const s2 = document.getElementById('sync-indicator-settings');
+  const map = {
+    local: ['○ local only', ''],
+    syncing: ['↻ syncing…', 'syncing'],
+    synced: ['✓ cloud synced', 'synced'],
+    error: ['⚠ sync error', '']
+  };
+  const [text, cls] = map[state] || map.local;
+  [s1, s2].forEach(el => { if(el){ el.textContent = text; el.className = 'sync-indicator' + (cls ? ' '+cls : ''); } });
+}
+
+async function saveToCloud(data) {
+  if (!currentUser || !db) return;
+  setSyncIndicator('syncing');
+  try {
+    await db.collection('users').doc(currentUser.uid).set(data, { merge: true });
+    setSyncIndicator('synced');
+  } catch(e) {
+    console.error('Cloud save error:', e);
+    setSyncIndicator('error');
+  }
+}
+
+function subscribeToCloud() {
+  if (!currentUser || !db) return;
+  setSyncIndicator('syncing');
+  firestoreUnsubscribe = db.collection('users').doc(currentUser.uid).onSnapshot(doc => {
+    if (doc.exists) {
+      const d = doc.data();
+      if (d.watchlist) watchlist = d.watchlist;
+      if (d.portfolio) portfolio = d.portfolio;
+      if (d.alerts) alerts = d.alerts;
+      if (d.cfg) CFG = Object.assign(CFG, d.cfg);
+      renderTable(); renderWatchlist(); renderCalendar(); renderPortfolio(); renderAlerts(); initSettings();
+    }
+    setSyncIndicator('synced');
+  }, err => { console.error(err); setSyncIndicator('error'); });
+}
+
+function updateAccountUI() {
+  const btn = document.getElementById('account-btn');
+  if (currentUser) {
+    const initial = (currentUser.displayName || currentUser.email || 'U')[0].toUpperCase();
+    btn.textContent = initial + ' Account';
+    btn.className = 'account-btn signed-in';
+    setSyncIndicator('synced');
+  } else {
+    btn.textContent = 'Sign In';
+    btn.className = 'account-btn';
+    setSyncIndicator('local');
+  }
+}
+
+// ── AUTH MODAL ────────────────────────────────────────────────────
+function openAuthModal() {
+  document.getElementById('auth-modal').classList.add('open');
+  renderAuthModal();
+}
+function closeAuthModal(e) {
+  if (e.target === document.getElementById('auth-modal')) document.getElementById('auth-modal').classList.remove('open');
+}
+function renderAuthModal() {
+  const box = document.getElementById('auth-content');
+  if (currentUser) {
+    const name = currentUser.displayName || currentUser.email || 'User';
+    const initial = name[0].toUpperCase();
+    box.innerHTML = `
+      <div class="signed-in-box">
+        <div class="signed-in-avatar">${initial}</div>
+        <div class="signed-in-name">${name}</div>
+        <div class="signed-in-email">${currentUser.email}</div>
+        <div class="cloud-info">
+          ✓ Your watchlist, portfolio, and alerts are synced to the cloud.<br>
+          Open this dashboard on any browser — your data follows you.
+        </div>
+        <button class="btn-modal-submit" onclick="signOut()" style="background:rgba(255,82,82,0.2);color:var(--red);border:1px solid rgba(255,82,82,0.4);">Sign Out</button>
+      </div>`;
+  } else {
+    box.innerHTML = `
+      <div class="modal-title">Welcome back</div>
+      <div class="modal-sub">Sign in to sync your data across any browser</div>
+      ${!firebaseReady ? `<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--gold);font-family:var(--mono);">
+        ⚠ Firebase not configured yet. To enable accounts, replace the firebaseConfig at the top of this file with your own project credentials from <strong>console.firebase.google.com</strong>.<br><br>
+        Until then, your data is saved locally in this browser only.
+      </div>` : ''}
+      <div class="modal-tabs">
+        <button class="modal-tab active" onclick="showAuthTab('login',this)" id="tab-login">Login</button>
+        <button class="modal-tab" onclick="showAuthTab('register',this)" id="tab-register">Register</button>
+      </div>
+      <div id="auth-form-login">
+        <div class="field-group"><label>Email</label><input type="email" id="auth-email" placeholder="you@example.com"></div>
+        <div class="field-group"><label>Password</label><input type="password" id="auth-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitAuth('login')"></div>
+        <div class="modal-err" id="auth-err"></div>
+        <button class="btn-modal-submit" id="auth-submit-btn" onclick="submitAuth('login')">Sign In</button>
+        <div class="modal-divider">— or —</div>
+        <button class="btn-google" onclick="signInWithGoogle()">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Continue with Google
+        </button>
+      </div>
+      <div id="auth-form-register" style="display:none;">
+        <div class="field-group"><label>Display Name</label><input type="text" id="auth-name" placeholder="Your name"></div>
+        <div class="field-group"><label>Email</label><input type="email" id="auth-email-r" placeholder="you@example.com"></div>
+        <div class="field-group"><label>Password</label><input type="password" id="auth-pass-r" placeholder="Min 6 characters" onkeydown="if(event.key==='Enter')submitAuth('register')"></div>
+        <div class="modal-err" id="auth-err-r"></div>
+        <button class="btn-modal-submit" onclick="submitAuth('register')">Create Account</button>
+      </div>`;
+  }
+}
+function showAuthTab(tab, el) {
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('auth-form-login').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('auth-form-register').style.display = tab === 'register' ? '' : 'none';
+}
+async function submitAuth(mode) {
+  if (!firebaseReady) { toast('Configure Firebase first'); return; }
+  const errEl = document.getElementById(mode === 'login' ? 'auth-err' : 'auth-err-r');
+  errEl.style.display = 'none';
+  const btn = document.getElementById('auth-submit-btn');
+  if (btn) btn.disabled = true;
+  try {
+    if (mode === 'login') {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-pass').value;
+      await auth.signInWithEmailAndPassword(email, pass);
+    } else {
+      const name = document.getElementById('auth-name').value.trim();
+      const email = document.getElementById('auth-email-r').value.trim();
+      const pass = document.getElementById('auth-pass-r').value;
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+      if (name) await cred.user.updateProfile({ displayName: name });
+    }
+    document.getElementById('auth-modal').classList.remove('open');
+    toast('✓ Signed in — data will sync to cloud');
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+    if (btn) btn.disabled = false;
+  }
+}
+async function signInWithGoogle() {
+  if (!firebaseReady) { toast('Configure Firebase first'); return; }
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+    document.getElementById('auth-modal').classList.remove('open');
+    toast('✓ Signed in with Google');
+  } catch(e) { toast('Google sign-in failed: ' + e.message); }
+}
+async function signOut() {
+  if (!auth) return;
+  await auth.signOut();
+  document.getElementById('auth-modal').classList.remove('open');
+  toast('Signed out — data saved locally');
+}
+
+// ── DATA — ALL NSE LISTED STOCKS ─────────────────────────────────
+const STOCKS = [
+  // BANKING
+  {ticker:"EQTY", name:"Equity Group Holdings",       sector:"Banking",      price:52.00,  yield:4.2,  cons:8,  payout:35, pe:8.5},
+  {ticker:"KCB",  name:"KCB Group Plc",               sector:"Banking",      price:71.00,  yield:5.1,  cons:9,  payout:40, pe:6.8},
+  {ticker:"COOP", name:"Co-operative Bank of Kenya",  sector:"Banking",      price:15.50,  yield:10.4, cons:7,  payout:45, pe:5.2},
+  {ticker:"SCBK", name:"Standard Chartered Kenya",    sector:"Banking",      price:185.00, yield:15.1, cons:8,  payout:70, pe:9.1},
+  {ticker:"SBIC", name:"Stanbic Holdings",            sector:"Banking",      price:120.00, yield:11.5, cons:6,  payout:55, pe:7.3},
+  {ticker:"ABSA", name:"Absa Bank Kenya Plc",         sector:"Banking",      price:14.40,  yield:6.8,  cons:5,  payout:42, pe:6.1},
+  {ticker:"DTK",  name:"Diamond Trust Bank Kenya",    sector:"Banking",      price:60.00,  yield:3.0,  cons:6,  payout:30, pe:4.5},
+  {ticker:"HF",   name:"HF Group Plc",                sector:"Banking",      price:4.70,   yield:0.0,  cons:0,  payout:0,  pe:12.0},
+  {ticker:"NCBA", name:"NCBA Group Plc",              sector:"Banking",      price:47.00,  yield:7.2,  cons:4,  payout:38, pe:5.8},
+  {ticker:"NBK",  name:"National Bank of Kenya",      sector:"Banking",      price:9.50,   yield:0.0,  cons:0,  payout:0,  pe:18.0},
+  {ticker:"I&M",  name:"I&M Group Plc",               sector:"Banking",      price:24.50,  yield:6.0,  cons:5,  payout:35, pe:5.5},
+  {ticker:"CRED", name:"Credit Bank Plc",             sector:"Banking",      price:2.80,   yield:0.0,  cons:0,  payout:0,  pe:9.0},
+  {ticker:"GULF", name:"Gulf African Bank",           sector:"Banking",      price:3.20,   yield:0.0,  cons:0,  payout:0,  pe:10.0},
+  // TELECOM
+  {ticker:"SCOM", name:"Safaricom Plc",               sector:"Telecom",      price:30.70,  yield:7.5,  cons:10, payout:65, pe:14.2},
+  // CONSUMER GOODS / FOOD & BEVERAGE
+  {ticker:"BAT",  name:"BAT Kenya Plc",               sector:"Consumer",     price:430.00, yield:12.0, cons:12, payout:90, pe:11.0},
+  {ticker:"EABL", name:"East African Breweries",      sector:"Consumer",     price:175.00, yield:5.8,  cons:10, payout:75, pe:18.5},
+  {ticker:"UNGA", name:"Unga Group Plc",              sector:"Consumer",     price:25.00,  yield:4.0,  cons:4,  payout:40, pe:8.5},
+  {ticker:"HMPR", name:"Homa Bay Sugarcane Prods.",   sector:"Consumer",     price:3.10,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"EVRD", name:"Eveready East Africa",        sector:"Consumer",     price:1.00,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"ORCH", name:"Nairobi Business Ventures",   sector:"Consumer",     price:1.10,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  // UTILITIES
+  {ticker:"KPLC", name:"Kenya Power & Lighting",      sector:"Utilities",    price:5.70,   yield:3.5,  cons:3,  payout:30, pe:7.5},
+  {ticker:"KEGN", name:"KenGen",                      sector:"Utilities",    price:10.20,  yield:4.0,  cons:5,  payout:40, pe:8.0},
+  {ticker:"UMME", name:"Umeme Ltd",                   sector:"Utilities",    price:7.00,   yield:8.5,  cons:3,  payout:60, pe:6.0},
+  // ENERGY / OIL & GAS
+  {ticker:"TOTL", name:"TotalEnergies Kenya",         sector:"Energy",       price:32.00,  yield:6.2,  cons:8,  payout:60, pe:10.5},
+  {ticker:"KPC",  name:"Kenya Pipeline Company",      sector:"Energy",       price:9.30,   yield:4.0,  cons:1,  payout:35, pe:10.0},
+  {ticker:"KenolKobil",name:"Rubis Energy Kenya",     sector:"Energy",       price:18.00,  yield:3.5,  cons:3,  payout:30, pe:9.0},
+  // INSURANCE
+  {ticker:"BRIT", name:"Britam Holdings",             sector:"Insurance",    price:8.50,   yield:3.2,  cons:4,  payout:30, pe:6.5},
+  {ticker:"JUB",  name:"Jubilee Holdings",            sector:"Insurance",    price:220.00, yield:3.8,  cons:7,  payout:40, pe:8.0},
+  {ticker:"LBTY", name:"Liberty Kenya Holdings",      sector:"Insurance",    price:5.70,   yield:2.0,  cons:3,  payout:25, pe:7.5},
+  {ticker:"PAFI", name:"Pan Africa Insurance Hldgs",  sector:"Insurance",    price:32.00,  yield:4.5,  cons:5,  payout:38, pe:8.0},
+  {ticker:"CIC",  name:"CIC Insurance Group",         sector:"Insurance",    price:2.80,   yield:2.5,  cons:3,  payout:28, pe:9.5},
+  {ticker:"KNRE", name:"Kenya Reinsurance Corp.",     sector:"Insurance",    price:2.50,   yield:4.0,  cons:5,  payout:40, pe:5.0},
+  {ticker:"OCIC", name:"Old Mutual Kenya",            sector:"Insurance",    price:7.20,   yield:3.0,  cons:3,  payout:30, pe:9.0},
+  // AGRICULTURE / AGRIBUSINESS
+  {ticker:"SASN", name:"Sasini Plc",                  sector:"Agriculture",  price:22.00,  yield:5.5,  cons:5,  payout:50, pe:9.0},
+  {ticker:"KAKZ", name:"Kakuzi Plc",                  sector:"Agriculture",  price:370.00, yield:3.5,  cons:6,  payout:35, pe:10.5},
+  {ticker:"REA",  name:"Rea Vipingo Plantations",     sector:"Agriculture",  price:21.50,  yield:6.0,  cons:4,  payout:55, pe:8.0},
+  {ticker:"TPSE", name:"Tilenergy Holdings",          sector:"Agriculture",  price:14.00,  yield:2.0,  cons:2,  payout:20, pe:12.0},
+  {ticker:"FTGH", name:"Flame Tree Group",            sector:"Agriculture",  price:1.14,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"LKPS", name:"Limuru Tea Plc",              sector:"Agriculture",  price:620.00, yield:2.5,  cons:5,  payout:30, pe:14.0},
+  {ticker:"KPTL", name:"Kapchorua Tea Plc",           sector:"Agriculture",  price:155.00, yield:3.0,  cons:4,  payout:32, pe:11.0},
+  {ticker:"EGAD", name:"Eliud Gachanga Group",        sector:"Agriculture",  price:3.00,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  // MEDIA
+  {ticker:"NMG",  name:"Nation Media Group",          sector:"Media",        price:18.00,  yield:6.0,  cons:7,  payout:55, pe:8.5},
+  {ticker:"STA",  name:"Standard Group Plc",          sector:"Media",        price:19.00,  yield:5.0,  cons:5,  payout:50, pe:9.0},
+  {ticker:"SCAN", name:"ScanGroup Plc",               sector:"Media",        price:11.50,  yield:4.0,  cons:4,  payout:45, pe:10.0},
+  // INVESTMENT / HOLDING COMPANIES
+  {ticker:"ICDC", name:"ICDCI",                       sector:"Investment",   price:85.00,  yield:4.5,  cons:6,  payout:45, pe:7.0},
+  {ticker:"AIMS", name:"African Industries Group",    sector:"Investment",   price:5.50,   yield:2.0,  cons:2,  payout:20, pe:11.0},
+  {ticker:"CTLG", name:"Centum Investment",           sector:"Investment",   price:13.00,  yield:0.0,  cons:1,  payout:0,  pe:5.0},
+  {ticker:"BLZE", name:"Baloobhai Patel",             sector:"Investment",   price:19.00,  yield:3.0,  cons:3,  payout:30, pe:8.0},
+  {ticker:"KWAL", name:"Kenya Wine Agencies",         sector:"Investment",   price:16.00,  yield:3.5,  cons:3,  payout:32, pe:9.0},
+  // INDUSTRIAL / CONSTRUCTION / MANUFACTURING
+  {ticker:"BAMB", name:"Bamburi Cement",              sector:"Industrial",   price:65.00,  yield:8.0,  cons:6,  payout:65, pe:12.0},
+  {ticker:"CABL", name:"East African Cables",         sector:"Industrial",   price:1.90,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"CRWN", name:"Crown Paints Kenya",          sector:"Industrial",   price:38.00,  yield:4.5,  cons:5,  payout:40, pe:10.0},
+  {ticker:"KBIL", name:"Kenya Buildcon",              sector:"Construction", price:10.00,  yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"BCOM", name:"B.O.C. Kenya Plc",            sector:"Manufacturing",price:115.00, yield:5.0,  cons:6,  payout:45, pe:9.5},
+  {ticker:"PORT", name:"East African Portland Cement",sector:"Construction", price:6.50,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"BERG", name:"Berger Paints Kenya",         sector:"Manufacturing",price:14.00,  yield:4.0,  cons:3,  payout:38, pe:11.0},
+  {ticker:"EVSG", name:"Eveready Group",              sector:"Manufacturing",price:1.40,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  // REAL ESTATE
+  {ticker:"HAFR", name:"Home Africa",                 sector:"Real Estate",  price:0.50,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"KURV", name:"Kurwitu Ventures",            sector:"Real Estate",  price:29.00,  yield:2.0,  cons:2,  payout:20, pe:20.0},
+  // AUTOMOBILE
+  {ticker:"CMCM", name:"CMC Holdings",                sector:"Automobile",   price:1.50,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"MMCE", name:"Marshalls East Africa",       sector:"Automobile",   price:14.00,  yield:3.0,  cons:2,  payout:28, pe:10.0},
+  // COMMERCIAL / SERVICES
+  {ticker:"KAMS", name:"Kapchorua Tea (Services)",    sector:"Commercial",   price:12.00,  yield:2.0,  cons:2,  payout:20, pe:9.0},
+  {ticker:"UNTD", name:"Unilever Kenya",              sector:"Commercial",   price:17.75,  yield:5.5,  cons:7,  payout:55, pe:16.0},
+  {ticker:"WPP",  name:"WPP Scangroup",               sector:"Commercial",   price:5.00,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"XPRS", name:"Express Kenya",               sector:"Commercial",   price:3.00,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"WLFD", name:"Williamson Tea",              sector:"Agriculture",  price:156.00, yield:3.2,  cons:5,  payout:30, pe:12.0},
+  {ticker:"UCHM", name:"Uchumi Supermarkets",         sector:"Commercial",   price:0.28,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"NAIB", name:"Nairobi Securities Exchange", sector:"Commercial",   price:13.50,  yield:5.0,  cons:4,  payout:48, pe:10.5},
+  {ticker:"SMER", name:"Sameer Africa Plc",           sector:"Commercial",   price:3.50,   yield:0.0,  cons:0,  payout:0,  pe:0.0},
+  {ticker:"TCL",  name:"TPS Eastern Africa",          sector:"Commercial",   price:17.00,  yield:3.0,  cons:3,  payout:28, pe:14.0},
+];
+
+const DIVIDENDS = [
+  {ticker:"SCBK",name:"Standard Chartered Kenya",exDate:"2026-04-25",payDate:"2026-05-15",amount:28.00,type:"Final"},
+  {ticker:"SCOM",name:"Safaricom Plc",           exDate:"2026-04-30",payDate:"2026-05-20",amount:1.10, type:"Final"},
+  {ticker:"ABSA",name:"Absa Bank Kenya",         exDate:"2026-05-01",payDate:"2026-05-20",amount:0.98, type:"Final"},
+  {ticker:"EQTY",name:"Equity Group Holdings",   exDate:"2026-05-08",payDate:"2026-05-28",amount:4.25, type:"Final"},
+  {ticker:"KCB", name:"KCB Group Plc",           exDate:"2026-05-12",payDate:"2026-06-01",amount:3.00, type:"Final"},
+  {ticker:"BAT", name:"BAT Kenya Plc",           exDate:"2026-05-20",payDate:"2026-06-10",amount:52.00,type:"Final"},
+  {ticker:"NCBA",name:"NCBA Group",              exDate:"2026-05-22",payDate:"2026-06-10",amount:3.40, type:"Final"},
+  {ticker:"COOP",name:"Co-operative Bank",       exDate:"2026-06-02",payDate:"2026-06-20",amount:1.50, type:"Final"},
+  {ticker:"SBIC",name:"Stanbic Holdings",        exDate:"2026-06-10",payDate:"2026-06-30",amount:14.00,type:"Final"},
+  {ticker:"I&M", name:"I&M Group",               exDate:"2026-06-15",payDate:"2026-07-03",amount:1.47, type:"Final"},
+  {ticker:"DTK", name:"Diamond Trust Bank",      exDate:"2026-06-20",payDate:"2026-07-08",amount:1.80, type:"Final"},
+  {ticker:"EABL",name:"East African Breweries",  exDate:"2026-07-05",payDate:"2026-07-25",amount:4.00, type:"Interim"},
+  {ticker:"KPLC",name:"Kenya Power & Lighting",  exDate:"2026-07-15",payDate:"2026-08-04",amount:0.20, type:"Final"},
+  {ticker:"TOTL",name:"TotalEnergies Kenya",     exDate:"2026-07-22",payDate:"2026-08-11",amount:2.00, type:"Final"},
+  {ticker:"KEGN",name:"KenGen",                  exDate:"2026-08-10",payDate:"2026-08-28",amount:0.40, type:"Final"},
+  {ticker:"BAMB",name:"Bamburi Cement",          exDate:"2026-08-18",payDate:"2026-09-05",amount:5.20, type:"Final"},
+  {ticker:"NMG", name:"Nation Media Group",      exDate:"2026-09-05",payDate:"2026-09-22",amount:1.10, type:"Interim"},
+  {ticker:"SASN",name:"Sasini Plc",              exDate:"2026-09-15",payDate:"2026-10-03",amount:1.20, type:"Final"},
+  {ticker:"KAKZ",name:"Kakuzi Plc",              exDate:"2026-09-20",payDate:"2026-10-08",amount:13.00,type:"Final"},
+  {ticker:"UNTD",name:"Unilever Kenya",          exDate:"2026-09-25",payDate:"2026-10-13",amount:0.98, type:"Final"},
+  {ticker:"JUB", name:"Jubilee Holdings",        exDate:"2026-10-01",payDate:"2026-10-20",amount:8.00, type:"Final"},
+  {ticker:"ICDC",name:"ICDCI",                   exDate:"2026-10-12",payDate:"2026-10-30",amount:3.80, type:"Final"},
+  {ticker:"CRWN",name:"Crown Paints Kenya",      exDate:"2026-10-18",payDate:"2026-11-05",amount:1.70, type:"Final"},
+  {ticker:"PAFI",name:"Pan Africa Insurance",    exDate:"2026-10-25",payDate:"2026-11-12",amount:1.44, type:"Final"},
+  {ticker:"BRIT",name:"Britam Holdings",         exDate:"2026-11-05",payDate:"2026-11-22",amount:0.28, type:"Final"},
+  {ticker:"KPC", name:"Kenya Pipeline Company",  exDate:"2026-11-20",payDate:"2026-12-08",amount:0.36, type:"Final"},
+  {ticker:"NAIB",name:"Nairobi Securities Exchange",exDate:"2026-11-25",payDate:"2026-12-12",amount:0.68,type:"Final"},
+  {ticker:"STA", name:"Standard Group",          exDate:"2026-12-05",payDate:"2026-12-22",amount:0.95, type:"Final"},
+  {ticker:"REA", name:"Rea Vipingo",             exDate:"2026-12-10",payDate:"2026-12-28",amount:1.29, type:"Final"},
+  {ticker:"BCOM",name:"B.O.C. Kenya",            exDate:"2026-12-15",payDate:"2027-01-05",amount:5.75, type:"Final"},
+];
+
+// ── STATE ─────────────────────────────────────────────────────────
+let CFG = { minYield:3.0, minScore:60, weights:{y:40,c:30,p:15,pe:15} };
+let watchlist = load('nse_watch') || [];
+let portfolio = load('nse_port')  || [];
+let alerts    = load('nse_alerts')|| [];
+let livePrices = {};
+let isFetching = false;
+let currentPage = 1;
+let currentSort = { field: 'score', asc: false };
+
+function save(k,v) {
+  try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {}
+  // Also cloud-save if signed in
+  const payload = { watchlist, portfolio, alerts, cfg: CFG };
+  saveToCloud(payload);
+}
+function load(k){ try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;} }
+
+// ── SCORING ───────────────────────────────────────────────────────
+function score(s){
+  const w=CFG.weights;
+  const yS=Math.min(s.yield/20*100,100);
+  const cS=Math.min(s.cons/15*100,100);
+  const pS=s.payout<30?70:s.payout<=60?100:s.payout<=80?60:20;
+  const peS=s.pe<=0?0:s.pe<=8?100:s.pe<=12?80:s.pe<=18?55:30;
+  return Math.round(yS*(w.y/100)+cS*(w.c/100)+pS*(w.p/100)+peS*(w.pe/100));
+}
+function sig(sc,yld){
+  if(sc>=CFG.minScore&&yld>=CFG.minYield)return'buy';
+  if(sc>=CFG.minScore*0.75)return'watch';
+  return'avoid';
+}
+function scored(){ return STOCKS.map(s=>({...s,score:score(s),signal:sig(score(s),s.yield)})); }
+
+function sortBy(field) {
+  if (currentSort.field === field) { currentSort.asc = !currentSort.asc; }
+  else { currentSort.field = field; currentSort.asc = field === 'ticker' || field === 'sector'; }
+  document.getElementById('f-sort').value = field === 'score' ? 'score' : field === 'yield' ? 'yield' : field === 'pe' ? 'pe' : 'price';
+  renderTable();
+}
+
+// ── SCREENER ──────────────────────────────────────────────────────
+function renderTable(){
+  let data = scored();
+  const sec = document.getElementById('f-sector').value;
+  const sg  = document.getElementById('f-signal').value;
+  const so  = document.getElementById('f-sort').value;
+  const q   = (document.getElementById('f-search').value || '').toLowerCase();
+  const pp  = parseInt(document.getElementById('f-perpage').value) || 25;
+
+  if(sec !== 'all') data = data.filter(s => s.sector === sec);
+  if(sg === 'buy')  data = data.filter(s => s.signal === 'buy');
+  if(sg === 'watch')data = data.filter(s => s.signal === 'watch');
+  if(q) data = data.filter(s => s.ticker.toLowerCase().includes(q) || s.name.toLowerCase().includes(q) || s.sector.toLowerCase().includes(q));
+
+  const sf = currentSort.field;
+  data.sort((a,b) => {
+    let av = a[sf], bv = b[sf];
+    if(sf === 'ticker' || sf === 'sector') { av = av||''; bv = bv||''; return currentSort.asc ? av.localeCompare(bv) : bv.localeCompare(av); }
+    return currentSort.asc ? av-bv : bv-av;
+  });
+
+  const buys = scored().filter(s => s.signal === 'buy').length;
+  document.getElementById('m-buys').textContent = buys;
+
+  const total = data.length;
+  const pages = pp >= 100 ? 1 : Math.ceil(total/pp);
+  if(currentPage > pages) currentPage = 1;
+  const start = (currentPage-1)*pp;
+  const pageData = pp >= 100 ? data : data.slice(start, start+pp);
+
+  document.getElementById('stock-tbody').innerHTML = pageData.map((s,i) => {
+    const iw = watchlist.includes(s.ticker);
+    const bc = s.score>=70?'bar-high':s.score>=50?'bar-mid':'bar-low';
+    const badge = s.signal==='buy'?'<span class="badge badge-buy">Buy</span>':s.signal==='watch'?'<span class="badge badge-watch">Watch</span>':'<span class="badge badge-avoid">Avoid</span>';
+    const lp = livePrices[s.ticker];
+    let priceHtml;
+    if(lp) {
+      const chgClass = lp.changePct>0?'price-up':lp.changePct<0?'price-down':'';
+      const chgStr = lp.changePct!==0?`<span class="price-change ${chgClass}">(${lp.changePct>0?'+':''}${lp.changePct.toFixed(2)}%)</span>`:'';
+      priceHtml = `<span class="price-live ${chgClass}">${s.price.toFixed(2)}</span>${chgStr}`;
+    } else {
+      priceHtml = s.price.toFixed(2);
+    }
+    return`<tr onclick="showDetail('${s.ticker}')">
+      <td style="color:var(--muted);font-size:11px;font-family:var(--mono);">${start+i+1}</td>
+      <td class="ticker-badge">${s.ticker}</td>
+      <td style="max-width:160px;font-size:12px;">${s.name}</td>
+      <td><span class="badge badge-sector">${s.sector}</span></td>
+      <td style="font-family:var(--mono);">${priceHtml}</td>
+      <td style="color:var(--accent);font-family:var(--mono);font-weight:500;">${s.yield>0?s.yield.toFixed(1)+'%':'—'}</td>
+      <td style="font-family:var(--mono);color:var(--muted);">${s.cons>0?s.cons+'y':'—'}</td>
+      <td style="font-family:var(--mono);color:var(--muted);">${s.payout>0?s.payout+'%':'—'}</td>
+      <td style="font-family:var(--mono);color:var(--muted);">${s.pe>0?s.pe.toFixed(1)+'x':'—'}</td>
+      <td><div class="score-bar"><div class="bar-track"><div class="bar-fill ${bc}" style="width:${s.score}%"></div></div><span class="score-num">${s.score}</span></div></td>
+      <td>${badge}</td>
+      <td style="display:flex;gap:6px;white-space:nowrap;" onclick="event.stopPropagation()">
+        <button class="btn btn-sm" onclick="toggleWatch('${s.ticker}')" style="${iw?'border-color:var(--red);color:var(--red);':''}">${iw?'★':'☆'}</button>
+        <button class="btn btn-sm" onclick="quickAddPortfolio('${s.ticker}')">+Port</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  const pbar = document.getElementById('pagination-bar');
+  if(pages <= 1 || pp >= 100) { pbar.innerHTML = `<span>${total} stocks</span>`; return; }
+  let phtml = `<span>${total} stocks · Page ${currentPage}/${pages}</span><div style="display:flex;gap:4px;margin-left:auto;">`;
+  phtml += `<button class="page-btn" onclick="gotoPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹ Prev</button>`;
+  for(let p=1; p<=pages; p++) {
+    if(pages <= 7 || p===1 || p===pages || Math.abs(p-currentPage)<=1) {
+      phtml += `<button class="page-btn ${p===currentPage?'active':''}" onclick="gotoPage(${p})">${p}</button>`;
+    } else if(Math.abs(p-currentPage)===2) { phtml += `<span style="color:var(--muted);padding:0 4px;">…</span>`; }
+  }
+  phtml += `<button class="page-btn" onclick="gotoPage(${currentPage+1})" ${currentPage===pages?'disabled':''}>Next ›</button></div>`;
+  pbar.innerHTML = phtml;
+
+  const liveCount = Object.keys(livePrices).length;
+  document.getElementById('last-updated').textContent = (liveCount>0?`📡 ${liveCount} live prices · `:'⚠ Static prices · ')+'Screened: '+new Date().toLocaleTimeString('en-KE');
+}
+
+function gotoPage(p) { currentPage = p; renderTable(); }
+
+// ── WATCHLIST ─────────────────────────────────────────────────────
+function toggleWatch(ticker, silent=false){
+  if(watchlist.includes(ticker)){watchlist=watchlist.filter(t=>t!==ticker);if(!silent)toast('Removed from watchlist');}
+  else{watchlist.push(ticker);if(!silent)toast('Added to watchlist');}
+  save('nse_watch', watchlist);
+  document.getElementById('m-watch').textContent = watchlist.length;
+  renderTable(); renderWatchlist(); renderCalendar();
+}
+function clearWatchlist(){ watchlist=[]; save('nse_watch',watchlist); renderTable(); renderWatchlist(); renderCalendar(); document.getElementById('m-watch').textContent=0; }
+function renderWatchlist(){
+  const grid=document.getElementById('watch-grid');
+  const empty=document.getElementById('watch-empty');
+  document.getElementById('m-watch').textContent=watchlist.length;
+  if(!watchlist.length){grid.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  const data=scored().filter(s=>watchlist.includes(s.ticker));
+  grid.innerHTML=data.map(s=>{
+    const badge=s.signal==='buy'?'<span class="badge badge-buy">Buy</span>':s.signal==='watch'?'<span class="badge badge-watch">Watch</span>':'<span class="badge badge-avoid">Avoid</span>';
+    return`<div class="watch-card">
+      <button class="wc-remove" onclick="toggleWatch('${s.ticker}')">&#x2715;</button>
+      <div class="wc-ticker">${s.ticker}</div>
+      <div class="wc-name">${s.name}</div>
+      <div class="wc-price">KES ${s.price.toFixed(2)}</div>
+      <div class="wc-yield">Yield ${s.yield>0?s.yield.toFixed(1)+'%':'—'} &nbsp;|&nbsp; Score ${s.score}</div>
+      <div style="margin-top:8px;">${badge}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── DIVIDEND CALENDAR ─────────────────────────────────────────────
+function renderCalendar(){
+  const filt=document.getElementById('cal-filter').value;
+  const today=new Date();
+  let divs=[...DIVIDENDS];
+  if(filt==='watch')divs=divs.filter(d=>watchlist.includes(d.ticker));
+  divs.sort((a,b)=>new Date(a.exDate)-new Date(b.exDate));
+  const months={};
+  divs.forEach(d=>{
+    const m=new Date(d.exDate).toLocaleDateString('en-KE',{month:'long',year:'numeric'});
+    if(!months[m])months[m]=[];
+    months[m].push(d);
+  });
+  const grid=document.getElementById('cal-grid');
+  if(!Object.keys(months).length){grid.innerHTML='<div class="empty"><span>◈</span>No dividends found for this filter.</div>';return;}
+  grid.innerHTML=Object.entries(months).map(([month,events])=>`
+    <div class="cal-card">
+      <div class="cal-month">${month}</div>
+      ${events.map(e=>{
+        const exD=new Date(e.exDate);
+        const daysLeft=Math.ceil((exD-today)/(1000*60*60*24));
+        const countdownHtml=daysLeft>0?`<span class="cal-countdown">${daysLeft}d to ex-date</span>`:`<span class="cal-countdown" style="background:rgba(255,82,82,0.12);color:var(--red);">Ex-date passed</span>`;
+        return`<div class="cal-event">
+          <div>
+            <div class="cal-ticker">${e.ticker}</div>
+            <div class="cal-name">${e.name}</div>
+            <div style="margin-top:4px;">${countdownHtml}</div>
+          </div>
+          <div class="cal-right">
+            <div class="cal-div">KES ${e.amount.toFixed(2)}</div>
+            <div class="cal-date">Ex: ${e.exDate}</div>
+            <div class="cal-date">Pay: ${e.payDate}</div>
+            <div class="cal-type">${e.type} dividend</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('');
+}
+
+// ── PORTFOLIO ─────────────────────────────────────────────────────
+function populateStockSelects(){
+  const sorted = [...STOCKS].sort((a,b)=>a.ticker.localeCompare(b.ticker));
+  const opts = sorted.map(s=>`<option value="${s.ticker}">${s.ticker} — ${s.name}</option>`).join('');
+  document.getElementById('p-stock').innerHTML = '<option value="">Select stock...</option>' + opts;
+  document.getElementById('al-stock').innerHTML = opts;
+}
+function quickAddPortfolio(ticker){
+  switchTabById('portfolio');
+  document.getElementById('p-stock').value=ticker;
+  const s=STOCKS.find(x=>x.ticker===ticker);
+  if(s)document.getElementById('p-buyprice').value=s.price.toFixed(2);
+  document.getElementById('p-shares').focus();
+}
+function addHolding(){
+  const ticker=document.getElementById('p-stock').value;
+  const shares=parseFloat(document.getElementById('p-shares').value);
+  const buyPrice=parseFloat(document.getElementById('p-buyprice').value);
+  const date=document.getElementById('p-date').value;
+  if(!ticker||!shares||!buyPrice){toast('Fill in all fields');return;}
+  portfolio.push({ticker,shares,buyPrice,date:date||new Date().toISOString().split('T')[0],id:Date.now()});
+  save('nse_port',portfolio);
+  renderPortfolio();
+  document.getElementById('p-shares').value='';
+  document.getElementById('p-buyprice').value='';
+  toast('Holding added');
+}
+function removeHolding(id){
+  portfolio=portfolio.filter(h=>h.id!==id);
+  save('nse_port',portfolio);renderPortfolio();toast('Holding removed');
+}
+function renderPortfolio(){
+  const empty=document.getElementById('port-empty');
+  const tbody=document.getElementById('port-tbody');
+  if(!portfolio.length){tbody.innerHTML='';empty.style.display='block';document.getElementById('port-summary').innerHTML='';document.getElementById('m-portval').textContent='KES 0';document.getElementById('m-portpnl').textContent='—';return;}
+  empty.style.display='none';
+  let totalBook=0,totalMkt=0,totalDivIncome=0;
+  const rows=portfolio.map(h=>{
+    const s=STOCKS.find(x=>x.ticker===h.ticker)||{price:h.buyPrice,yield:0,name:h.ticker};
+    const book=h.shares*h.buyPrice;
+    const mkt=h.shares*s.price;
+    const pnl=mkt-book;
+    const pnlPct=((pnl/book)*100).toFixed(1);
+    const yieldOnCost=((s.price*s.yield/100)/h.buyPrice*100).toFixed(1);
+    const annualDiv=h.shares*(s.price*s.yield/100);
+    totalBook+=book;totalMkt+=mkt;totalDivIncome+=annualDiv;
+    const pnlColor=pnl>=0?'var(--accent)':'var(--red)';
+    const pnlSign=pnl>=0?'+':'';
+    return`<tr>
+      <td class="ticker-badge">${h.ticker}</td>
+      <td style="font-size:12px;color:var(--muted);">${s.name||h.ticker}</td>
+      <td style="font-family:var(--mono);">${h.shares.toLocaleString()}</td>
+      <td style="font-family:var(--mono);">KES ${h.buyPrice.toFixed(2)}</td>
+      <td style="font-family:var(--mono);">KES ${s.price.toFixed(2)}</td>
+      <td style="font-family:var(--mono);">KES ${Math.round(book).toLocaleString()}</td>
+      <td style="font-family:var(--mono);">KES ${Math.round(mkt).toLocaleString()}</td>
+      <td style="font-family:var(--mono);color:${pnlColor};">${pnlSign}KES ${Math.round(pnl).toLocaleString()} (${pnlSign}${pnlPct}%)</td>
+      <td style="font-family:var(--mono);color:var(--accent);">${yieldOnCost}%</td>
+      <td><button class="btn btn-sm btn-red" onclick="removeHolding(${h.id})">&#x2715;</button></td>
+    </tr>`;
+  }).join('');
+  tbody.innerHTML=rows;
+  const totalPnl=totalMkt-totalBook;
+  const totalPnlPct=totalBook>0?((totalPnl/totalBook)*100).toFixed(1):0;
+  const pnlColor=totalPnl>=0?'var(--accent)':'var(--red)';
+  document.getElementById('m-portval').textContent='KES '+Math.round(totalMkt).toLocaleString();
+  document.getElementById('m-portpnl').style.color=pnlColor;
+  document.getElementById('m-portpnl').textContent=(totalPnl>=0?'+':'')+Math.round(totalPnl).toLocaleString()+' ('+totalPnlPct+'%)';
+  document.getElementById('port-summary').innerHTML=`
+    <div class="port-metric"><div class="port-metric-label">Book Value</div><div class="port-metric-value" style="color:var(--text);">KES ${Math.round(totalBook).toLocaleString()}</div></div>
+    <div class="port-metric"><div class="port-metric-label">Market Value</div><div class="port-metric-value" style="color:var(--accent);">KES ${Math.round(totalMkt).toLocaleString()}</div></div>
+    <div class="port-metric"><div class="port-metric-label">Total P&L</div><div class="port-metric-value" style="color:${pnlColor};">${totalPnl>=0?'+':''}KES ${Math.round(totalPnl).toLocaleString()}</div></div>
+    <div class="port-metric"><div class="port-metric-label">Est. Annual Dividends</div><div class="port-metric-value" style="color:var(--gold);">KES ${Math.round(totalDivIncome).toLocaleString()}</div></div>
+    <div class="port-metric"><div class="port-metric-label">Holdings</div><div class="port-metric-value" style="color:var(--text);">${portfolio.length}</div></div>
+  `;
+}
+
+// ── PRICE ALERTS ──────────────────────────────────────────────────
+function addAlert(){
+  const ticker=document.getElementById('al-stock').value;
+  const type=document.getElementById('al-type').value;
+  const target=parseFloat(document.getElementById('al-target').value);
+  if(!ticker||isNaN(target)){toast('Fill in all alert fields');return;}
+  const s=STOCKS.find(x=>x.ticker===ticker);
+  alerts.push({id:Date.now(),ticker,name:s?s.name:ticker,type,target,active:true});
+  save('nse_alerts',alerts);
+  document.getElementById('al-target').value='';
+  renderAlerts();toast('Alert set');
+}
+function removeAlert(id){
+  alerts=alerts.filter(a=>a.id!==id);
+  save('nse_alerts',alerts);renderAlerts();toast('Alert removed');
+}
+function renderAlerts(){
+  const list=document.getElementById('alerts-list');
+  const empty=document.getElementById('alerts-empty');
+  document.getElementById('m-alerts').textContent=alerts.length;
+  if(!alerts.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  list.innerHTML=alerts.map(a=>{
+    const s=STOCKS.find(x=>x.ticker===a.ticker);
+    if(!s) return '';
+    let triggered=false,trigDir='';
+    if(a.type==='above'&&s.price>a.target){triggered=true;trigDir='up';}
+    if(a.type==='below'&&s.price<a.target){triggered=true;trigDir='down';}
+    if(a.type==='yield'&&s.yield>a.target){triggered=true;trigDir='up';}
+    const typeLabel=a.type==='above'?'Price above':a.type==='below'?'Price below':'Yield above';
+    const unit=a.type==='yield'?'%':'KES';
+    const currLabel=a.type==='yield'?`Current: ${s.yield.toFixed(1)}%`:`Current: KES ${s.price.toFixed(2)}`;
+    const statusColor=triggered?(trigDir==='up'?'var(--accent)':'var(--red)'):'var(--muted)';
+    const statusText=triggered?`TRIGGERED (${trigDir==='up'?'▲':'▼'})`:'Watching...';
+    const cardClass=triggered?(trigDir==='up'?'triggered':'triggered-red'):'';
+    return`<div class="alert-card ${cardClass}">
+      <div class="alert-left">
+        <div class="alert-icon ${triggered&&trigDir==='up'?'alert-icon-up':'alert-icon-down'}" style="font-size:16px;">${triggered?(trigDir==='up'?'▲':'▼'):'◎'}</div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="alert-ticker">${a.ticker}</span>
+            <span style="font-size:12px;color:var(--muted);">${a.name}</span>
+          </div>
+          <div class="alert-detail">${typeLabel} ${unit} ${a.target.toFixed(2)} &nbsp;|&nbsp; ${currLabel}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="alert-status" style="color:${statusColor};">${statusText}</span>
+        <button class="btn btn-sm btn-red" onclick="removeAlert(${a.id})">&#x2715;</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── DETAIL OVERLAY ────────────────────────────────────────────────
+function showDetail(ticker){
+  const s=scored().find(x=>x.ticker===ticker);
+  if(!s)return;
+  const badge=s.signal==='buy'?'<span class="badge badge-buy">Buy Signal</span>':s.signal==='watch'?'<span class="badge badge-watch">Watch</span>':'<span class="badge badge-avoid">Avoid</span>';
+  const annDiv=s.yield>0?(s.price*s.yield/100).toFixed(2):'—';
+  const iw=watchlist.includes(ticker);
+  const divEntry=DIVIDENDS.find(d=>d.ticker===ticker);
+  const nextDiv=divEntry?`<div class="d-row"><span>Next Ex-Date</span><span style="color:var(--gold);">${divEntry.exDate}</span></div><div class="d-row"><span>Next Dividend</span><span style="color:var(--accent);">KES ${divEntry.amount.toFixed(2)}</span></div>`:'';
+  const lp = livePrices[s.ticker];
+  let priceStr = `KES ${s.price.toFixed(2)}`;
+  if(lp) {
+    const arrow = lp.changePct>0?'▲':lp.changePct<0?'▼':'–';
+    const chgClass = lp.changePct>0?'price-up':lp.changePct<0?'price-down':'';
+    priceStr = `KES ${s.price.toFixed(2)} <span class="${chgClass}" style="font-size:11px;">${arrow} ${Math.abs(lp.changePct).toFixed(2)}% today</span>`;
+  }
+  document.getElementById('detail-content').innerHTML=`
+    <div class="d-title">${s.name}</div>
+    <div class="d-sub">${s.ticker} &nbsp;·&nbsp; ${s.sector} &nbsp;·&nbsp; ${badge}</div>
+    <div class="d-row"><span>Current Price</span><span>${priceStr}</span></div>
+    <div class="d-row"><span>Dividend Yield</span><span style="color:var(--accent);">${s.yield>0?s.yield.toFixed(1)+'%':'—'}</span></div>
+    <div class="d-row"><span>Est. Annual Div/Share</span><span>KES ${annDiv}</span></div>
+    <div class="d-row"><span>Consecutive Div. Years</span><span>${s.cons>0?s.cons+' years':'No dividend history'}</span></div>
+    <div class="d-row"><span>Payout Ratio</span><span>${s.payout>0?s.payout+'%'+'  '+(s.payout>80?'⚠️':''):'—'}</span></div>
+    <div class="d-row"><span>P/E Ratio</span><span>${s.pe>0?s.pe.toFixed(1)+'x':'—'}</span></div>
+    <div class="d-row"><span>Screener Score</span><span style="color:var(--accent);">${s.score} / 100</span></div>
+    ${nextDiv}
+    <div class="trade-steps">
+      <strong>How to trade via Faida Investment Bank</strong>
+      1. Log into the Faida IB client portal<br>
+      2. Search ticker: <strong style="color:var(--accent);">${s.ticker}</strong><br>
+      3. Place a limit buy order at or below KES ${s.price.toFixed(2)}<br>
+      4. Confirm via your CDS account<br>
+      5. Hold through the ex-dividend date to qualify for dividends
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-accent" style="flex:1;" onclick="toggleWatch('${ticker}');document.getElementById('detail-overlay').classList.remove('open')">
+        ${iw?'Remove from Watchlist':'★ Watch'}
+      </button>
+      <button class="btn" style="flex:1;" onclick="quickAddPortfolio('${ticker}');document.getElementById('detail-overlay').classList.remove('open')">
+        + Add to Portfolio
+      </button>
+    </div>
+  `;
+  document.getElementById('detail-overlay').classList.add('open');
+}
+function closeOverlay(e){if(e.target===document.getElementById('detail-overlay'))document.getElementById('detail-overlay').classList.remove('open');}
+
+// ── SETTINGS ──────────────────────────────────────────────────────
+function updateSettings(){
+  CFG.minYield=parseFloat(document.getElementById('s-yield').value);
+  CFG.minScore=parseInt(document.getElementById('s-score').value);
+  document.getElementById('s-yield-v').textContent=CFG.minYield.toFixed(1)+'%';
+  document.getElementById('s-score-v').textContent=CFG.minScore;
+  save('nse_cfg', CFG);
+  renderTable();
+}
+function updateWeights(){
+  const y=parseInt(document.getElementById('w-y').value);
+  const c=parseInt(document.getElementById('w-c').value);
+  const p=parseInt(document.getElementById('w-p').value);
+  const pe=parseInt(document.getElementById('w-pe').value);
+  document.getElementById('w-y-v').textContent=y;
+  document.getElementById('w-c-v').textContent=c;
+  document.getElementById('w-p-v').textContent=p;
+  document.getElementById('w-pe-v').textContent=pe;
+  const total=y+c+p+pe;
+  const warn=document.getElementById('weight-warn');
+  if(total!==100){warn.style.display='block';warn.textContent=`Weights total ${total} — must equal exactly 100 to apply.`;return;}
+  warn.style.display='none';
+  CFG.weights={y,c,p,pe};
+  save('nse_cfg',CFG);
+  renderTable();
+}
+function initSettings(){
+  document.getElementById('s-yield').value=CFG.minYield;
+  document.getElementById('s-score').value=CFG.minScore;
+  document.getElementById('w-y').value=CFG.weights.y;
+  document.getElementById('w-c').value=CFG.weights.c;
+  document.getElementById('w-p').value=CFG.weights.p;
+  document.getElementById('w-pe').value=CFG.weights.pe;
+  document.getElementById('s-yield-v').textContent=CFG.minYield.toFixed(1)+'%';
+  document.getElementById('s-score-v').textContent=CFG.minScore;
+  document.getElementById('w-y-v').textContent=CFG.weights.y;
+  document.getElementById('w-c-v').textContent=CFG.weights.c;
+  document.getElementById('w-p-v').textContent=CFG.weights.p;
+  document.getElementById('w-pe-v').textContent=CFG.weights.pe;
+}
+function clearAll(){
+  if(!confirm('Clear ALL saved data?'))return;
+  watchlist=[];portfolio=[];alerts=[];
+  save('nse_watch',watchlist);save('nse_port',portfolio);save('nse_alerts',alerts);
+  renderTable();renderWatchlist();renderCalendar();renderPortfolio();renderAlerts();
+  toast('All data cleared');
+}
+
+// ── TABS ──────────────────────────────────────────────────────────
+function switchTab(name,el){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  el.classList.add('active');
+  if(name==='watchlist')renderWatchlist();
+  if(name==='calendar')renderCalendar();
+  if(name==='portfolio')renderPortfolio();
+  if(name==='alerts')renderAlerts();
+}
+function switchTabById(name){
+  const tabNames=['screener','watchlist','calendar','portfolio','alerts','settings'];
+  const tabs=document.querySelectorAll('.tab');
+  const idx=tabNames.indexOf(name);
+  if(idx>=0)switchTab(name,tabs[idx]);
+}
+
+// ── LIVE PRICE FETCHING (works from ANY browser with internet) ────
+async function fetchLivePrices() {
+  if (isFetching) return;
+  isFetching = true;
+  const btn = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  const statusEl = document.getElementById('live-status');
+  const tsEl = document.getElementById('live-ts');
+  btn.disabled = true;
+  icon.innerHTML = '<span class="spin">↻</span>';
+  statusEl.className = 'live-status fetching';
+  statusEl.textContent = 'Fetching live prices from NSE…';
+  tsEl.textContent = '';
+
+  // Batch tickers (fetch all)
+  const tickers = STOCKS.map(s => s.ticker).join(', ');
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system: `You are a financial data assistant for the Nairobi Securities Exchange (NSE), Kenya. Search for the latest NSE Kenya stock prices and return ONLY a valid JSON object. No markdown, no explanation, no code fences — raw JSON only.
+Format:
+{
+  "TICKER": { "price": 12.34, "change": 0.50, "changePct": 4.23 },
+  ...
+}
+Search afx.kwayisi.org/nse, african-markets.com, or investing.com for current NSE prices. Prices in KES. If unavailable, use null.`,
+        messages: [{
+          role: 'user',
+          content: `Search for current NSE Kenya stock prices for: ${tickers}. Today is ${new Date().toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi' })}. Return raw JSON only.`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    let rawText = '';
+    for (const block of data.content) {
+      if (block.type === 'text') rawText += block.text;
+    }
+    rawText = rawText.replace(/```json|```/g, '').trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in response');
+    const parsed = JSON.parse(jsonMatch[0]);
+    const now = new Date();
+    let updated = 0;
+    for (const [ticker, info] of Object.entries(parsed)) {
+      if (info && info.price && !isNaN(info.price)) {
+        livePrices[ticker] = {
+          price: parseFloat(info.price),
+          change: parseFloat(info.change ?? 0),
+          changePct: parseFloat(info.changePct ?? 0),
+          fetchedAt: now
+        };
+        const stock = STOCKS.find(s => s.ticker === ticker);
+        if (stock) {
+          stock.price = parseFloat(info.price);
+          const divEntry = DIVIDENDS.find(d => d.ticker === ticker);
+          if (divEntry && stock.price > 0) {
+            stock.yield = parseFloat(((divEntry.amount / stock.price) * 100).toFixed(1));
+          }
+          updated++;
+        }
+      }
+    }
+    if (updated === 0) throw new Error('No valid prices returned');
+    statusEl.className = 'live-status success';
+    statusEl.textContent = `✓ ${updated} prices updated`;
+    tsEl.textContent = `· Last fetched ${now.toLocaleTimeString('en-KE', { timeZone: 'Africa/Nairobi' })} EAT`;
+    renderTable(); renderWatchlist(); renderPortfolio();
+    toast(`✓ ${updated} live prices updated from NSE`);
+  } catch (err) {
+    console.error('Live price fetch error:', err);
+    statusEl.className = 'live-status error';
+    statusEl.textContent = `⚠ Fetch failed: ${err.message}. Using last known prices.`;
+    toast('Could not fetch live prices — using cached data');
+  } finally {
+    isFetching = false;
+    btn.disabled = false;
+    icon.innerHTML = '↻';
+  }
+}
+
+// Auto-fetch on load
+setTimeout(() => fetchLivePrices(), 1500);
+// Auto-refresh every 5 minutes when market is open
+setInterval(() => {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' }));
+  const day = now.getDay(), h = now.getHours(), m = now.getMinutes();
+  const isOpen = day >= 1 && day <= 5 && (h > 9 || (h === 9 && m >= 30)) && h < 15;
+  if (isOpen) fetchLivePrices();
+}, 5 * 60 * 1000);
+
+// ── CLOCK & MARKET STATUS ─────────────────────────────────────────
+function updateClock(){
+  const now=new Date();
+  const eat=new Date(now.toLocaleString('en-US',{timeZone:'Africa/Nairobi'}));
+  document.getElementById('clock').textContent=eat.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' EAT';
+  const day=eat.getDay(),h=eat.getHours(),m=eat.getMinutes();
+  const isOpen=day>=1&&day<=5&&(h>9||(h===9&&m>=30))&&h<15;
+  document.getElementById('status-dot').className='status-dot'+(isOpen?'':' closed');
+  document.getElementById('market-status-text').textContent=isOpen?'Market Open':'Market Closed';
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+initFirebase();
+populateStockSelects();
+initSettings();
+renderTable();
+renderWatchlist();
+renderCalendar();
+renderPortfolio();
+renderAlerts();
+updateClock();
+setInterval(updateClock,1000);
+setInterval(()=>{renderTable();renderAlerts();},60000);
+</script>
+</body>
+</html>
